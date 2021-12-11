@@ -1,7 +1,10 @@
 (ns advent-of-code.core
   (:require
+   [advent-of-code.tap :refer [tap]]
+   [advent-of-code.input :as input]
    [taoensso.encore :as encore]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.math.combinatorics :as combo]))
 
 (defn parse-int [x]
   (Integer/parseUnsignedInt x))
@@ -19,7 +22,15 @@
       x))))
 
 (defn bidirectional-inclusive-range [a b]
-  (range a ((if (> a b) dec inc) b) (- (compare a b))))
+  (range a ((if (> a b) dec inc) b) (compare b a)))
+
+(defn median [coll]
+  (let [c (count coll)]
+    (nth (sort coll)
+         (Math/ceil (/ c 2.0)))))
+
+(defn abs [x]
+  (Math/abs x))
 
 (defn day-5.2 []
   (let [input "299,462 299,747
@@ -549,3 +560,71 @@
           grid)
          (filter (fn [[_ hits]] (>= hits 2)))
          count)))
+
+(defn day-6.1 []
+  (let [input (->> (str/split input/day-6 #",")
+                   (map parse-int))]
+    (->> (reduce
+          (fn [fishes _]
+            (reduce
+             (fn [fishes fish]
+               (if (zero? fish)
+                 (into fishes [6 8])
+                 (conj fishes (dec fish))))
+             []
+             fishes))
+          input
+          (range 80))
+         count)))
+
+(defn day-6.2 []
+  (let [input (->> (str/split input/day-6 #",")
+                   (map parse-int)
+                   frequencies)]
+    (->> (reduce
+          (fn [fishes _]
+            (reduce-kv
+             (fn [fishes days day-fishes]
+               (if (zero? days)
+                 (-> fishes
+                     (update 6 + day-fishes)
+                     (update 8 + day-fishes))
+                 (-> fishes
+                     (update (dec days) + day-fishes))))
+             (into {} (map vector (range 9) (repeat 0)))
+             fishes))
+          input
+          (range 256))
+         (map second)
+         (reduce + 0))))
+
+(defn day-7.1 []
+  (let [input input/day-7
+        input-median
+        (median input)]
+    (->> input
+         (map (comp abs (partial - input-median)))
+         (reduce + 0))))
+
+(defn day-7.2 []
+  (let [input input/day-7
+        width (apply max input)]
+    (->> input
+         (map
+          (fn [crab]
+            (concat
+             (->> (range 1 (inc crab))
+                  (reduce
+                   (fn [path x]
+                     (conj path (+ x (or (first path) 0))))
+                   (list)))
+             (list 0)
+             (->> (range 1 (- width crab))
+                  (reduce
+                   (fn [path x]
+                     (conj path (+ x (or (first path) 0))))
+                   (list))
+                  reverse))))
+         (apply map list)
+         (map (partial reduce + 0))
+         (reduce min encore/max-long))))
